@@ -83,6 +83,30 @@ const setupVerificationModal = () => {
         });
     });
 
+    // QA input live validation
+    const qaInput = document.getElementById('verify-qa-input');
+    if (qaInput) {
+        qaInput.addEventListener('input', () => {
+            const val = qaInput.value.trim();
+            const status = document.getElementById('qa-status');
+
+            if (val.length === 0) {
+                status.textContent = '0 / 30 chars';
+                status.style.color = 'var(--text-muted)';
+                verificationProof = { type: null, value: null };
+            } else if (val.length >= 30) {
+                status.textContent = `${val.length} chars — Ready to verify!`;
+                status.style.color = 'var(--accent-green)';
+                verificationProof = { type: 'qa', value: val };
+            } else {
+                status.textContent = `${val.length} / 30 chars minimum`;
+                status.style.color = 'var(--accent-yellow)';
+                verificationProof = { type: null, value: null };
+            }
+            updateVerifyButton();
+        });
+    }
+
     // URL input live validation
     const urlInput = document.getElementById('verify-url-input');
     if (urlInput) {
