@@ -136,48 +136,7 @@
             </div>
         </div>
 
-        <!-- Pomodoro Timer Section -->
-        <div class="card fade-in-up">
-            <div class="card-header">
-                <h3 class="card-title">🍅 Pomodoro Timer</h3>
-                <span class="pill pill-blue" id="session-count-pill">Sessions today: 0</span>
-            </div>
 
-            <div class="grid-2" style="gap:32px;">
-                <!-- Left: Timer -->
-                <div style="text-align:center;">
-                    <!-- Circular Timer Display -->
-                    <div class="pomodoro-display">
-                        <svg viewBox="0 0 220 220">
-                            <circle class="timer-bg" cx="110" cy="110" r="100"></circle>
-                            <circle class="timer-progress" id="timer-progress" cx="110" cy="110" r="100"
-                                stroke-dasharray="628.32" stroke-dashoffset="0"></circle>
-                        </svg>
-                        <span class="pomodoro-time" id="pomodoro-time">25:00</span>
-                    </div>
-
-                    <!-- Session Label -->
-                    <div class="pomodoro-label" id="pomodoro-label">🍅 Focus Session (25 min)</div>
-
-                    <!-- Controls -->
-                    <div class="pomodoro-controls">
-                        <button class="btn btn-primary" id="pomodoro-start" onclick="togglePomodoro()">▶️ Start</button>
-                        <button class="btn btn-secondary" onclick="resetPomodoro()">🔄 Reset</button>
-                    </div>
-
-                    <!-- Session Dots -->
-                    <div class="session-dots" id="session-dots">
-                        <span style="color: var(--text-muted); font-size: 0.85rem">No sessions yet</span>
-                    </div>
-                </div>
-
-                <!-- Right: Session History -->
-                <div>
-                    <h4 style="font-size:0.95rem;font-weight:700;margin-bottom:14px;">📋 Today's Sessions</h4>
-                    <div id="session-history"></div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <!-- Bottom Tab Bar (Mobile) -->
@@ -195,18 +154,7 @@
     <script src="js/gamification.js"></script>
     <script src="js/pomodoro.js"></script>
     <script src="js/analytics.js"></script>
-    <script>
-        // Initialize Pomodoro timer and update session count pill
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof initPomodoro === 'function') initPomodoro();
 
-            const sessions = getData(KEYS.SESSIONS, []);
-            const today = getToday();
-            const todayCount = sessions.filter(s => s.date === today && s.type === 'focus').length;
-            const pill = document.getElementById('session-count-pill');
-            if (pill) pill.textContent = `Sessions today: ${todayCount}`;
-        });
-    </script>
     <script src="js/timer-widget.js"></script>
 </body>
 

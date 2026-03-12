@@ -232,12 +232,30 @@
             <div id="verify-content">
                 <!-- Tabs -->
                 <div class="verify-tabs">
-                    <button class="verify-tab active" data-tab="url">🔗 URL Proof</button>
+                    <button class="verify-tab active" data-tab="qa">🧠 AI Q&A</button>
+                    <button class="verify-tab" data-tab="url">🔗 URL Proof</button>
                     <button class="verify-tab" data-tab="media">📎 Media Upload</button>
                 </div>
 
+                <!-- Q&A Panel (Default) -->
+                <div id="verify-qa-panel" style="display:block;">
+                    <div
+                        style="background: linear-gradient(135deg, rgba(79, 142, 247, 0.08), rgba(167, 139, 250, 0.08)); border: 1px solid var(--accent-blue); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                        <span class="pill pill-blue" style="margin-bottom:8px; display:inline-block;">Bot</span>
+                        <h4 id="qa-question-text"
+                            style="font-size:1.05rem; margin-bottom:0; line-height:1.4; color:var(--text-primary);">
+                            Loading question...</h4>
+                    </div>
+                    <label class="form-label">Your Answer (Min 30 characters)</label>
+                    <textarea class="form-textarea" id="verify-qa-input" placeholder="Type your detailed answer here..."
+                        style="min-height: 100px;"></textarea>
+                    <div id="qa-status"
+                        style="margin-top:6px;font-size:0.8rem;text-align:right;color:var(--text-muted);">0 / 30 chars
+                    </div>
+                </div>
+
                 <!-- URL Proof Panel -->
-                <div id="verify-url-panel">
+                <div id="verify-url-panel" style="display:none;">
                     <label class="form-label">Paste a link to your work (notes doc, assignment, submission)</label>
                     <input type="url" class="form-input" id="verify-url-input" placeholder="https://...">
                     <div id="url-status" style="margin-top:6px;font-size:0.8rem;"></div>
@@ -256,9 +274,17 @@
                     <div id="file-preview" style="display:none;"></div>
                 </div>
 
+                <!-- Reflection Notes (Optional) -->
+                <div style="margin-top:20px; text-align:left;">
+                    <label class="form-label">Reflection Notes (Optional, +20 XP)</label>
+                    <textarea class="form-textarea" id="verify-reflection"
+                        placeholder="What did you learn? Summarize your work here..."
+                        style="min-height: 60px;"></textarea>
+                </div>
+
                 <!-- Verify Button -->
                 <button class="btn btn-primary btn-full btn-disabled" id="verify-complete-btn" disabled
-                    style="margin-top:20px;">
+                    style="margin-top:16px;">
                     Upload proof to verify ✓
                 </button>
 

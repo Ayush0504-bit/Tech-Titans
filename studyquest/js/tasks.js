@@ -68,12 +68,13 @@ const setupVerificationModal = () => {
         el.addEventListener('click', closeVerifyModal);
     });
 
-    // Tab switching between URL and Media
+    // Tab switching between URL, Media, and QA
     document.querySelectorAll('.verify-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.verify-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             const view = tab.dataset.tab;
+            document.getElementById('verify-qa-panel').style.display = view === 'qa' ? 'block' : 'none';
             document.getElementById('verify-url-panel').style.display = view === 'url' ? 'block' : 'none';
             document.getElementById('verify-media-panel').style.display = view === 'media' ? 'block' : 'none';
             // Reset proof state when switching tabs
@@ -144,6 +145,10 @@ const setupVerificationModal = () => {
     // Verify & Complete button
     const verifyBtn = document.getElementById('verify-complete-btn');
     if (verifyBtn) verifyBtn.addEventListener('click', executeVerification);
+
+    // Reflection input live update for bonus XP
+    const reflectionInput = document.getElementById('verify-reflection');
+    if (reflectionInput) reflectionInput.addEventListener('input', updateVerifyButton);
 
     // Skip Verification link
     const skipLink = document.getElementById('skip-verification-link');
@@ -248,7 +253,15 @@ const updateVerifyButton = () => {
     btn.classList.toggle('btn-disabled', !hasProof);
 
     if (hasProof) {
-        const xpAmount = verificationProof.type === 'media' ? 150 : 100;
+        let xpAmount = 100;
+        if (verificationProof.type === 'media') xpAmount = 150;
+        if (verificationProof.type === 'qa') xpAmount = 250;
+
+        const reflectionEl = document.getElementById('verify-reflection');
+        if (reflectionEl && reflectionEl.value.trim().length > 5) {
+            xpAmount += 20;
+        }
+
         btn.textContent = `Verify & Earn ${xpAmount} XP 🌟`;
     } else {
         btn.textContent = 'Upload proof to verify ✓';
@@ -267,15 +280,43 @@ const openVerifyModal = (taskId) => {
     document.getElementById('file-preview').style.display = 'none';
     document.getElementById('file-preview').innerHTML = '';
     document.getElementById('verify-file-input').value = '';
+    const reflectionEl = document.getElementById('verify-reflection');
+    if (reflectionEl) reflectionEl.value = '';
+
+    // Reset QA
+    const qaInput = document.getElementById('verify-qa-input');
+    if (qaInput) qaInput.value = '';
+    const qaStatus = document.getElementById('qa-status');
+    if (qaStatus) {
+        qaStatus.textContent = '0 / 30 chars';
+        qaStatus.style.color = 'var(--text-muted)';
+    }
+
     document.getElementById('skip-confirm').style.display = 'none';
     document.getElementById('verify-loading').style.display = 'none';
     document.getElementById('verify-success').style.display = 'none';
     document.getElementById('verify-content').style.display = 'block';
 
-    // Reset tabs to URL
+    // Find task name for Q&A
+    let taskName = "this topic";
+    const tasks = getData(KEYS.TASKS, []);
+    const task = tasks.find(t => t.id === taskId);
+    if (task) taskName = task.name;
+
+    const questions = [
+        `Explain the core concepts of "${taskName}" in your own words.`,
+        `What is the most challenging aspect of understanding "${taskName}"?`,
+        `How would you summarize "${taskName}" to a beginner?`,
+        `What are the three most important takeaways from "${taskName}"?`
+    ];
+    const qtext = document.getElementById('qa-question-text');
+    if (qtext) qtext.textContent = questions[Math.floor(Math.random() * questions.length)];
+
+    // Reset tabs to QA
     document.querySelectorAll('.verify-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector('.verify-tab[data-tab="url"]').classList.add('active');
-    document.getElementById('verify-url-panel').style.display = 'block';
+    document.querySelector('.verify-tab[data-tab="qa"]').classList.add('active');
+    document.getElementById('verify-qa-panel').style.display = 'block';
+    document.getElementById('verify-url-panel').style.display = 'none';
     document.getElementById('verify-media-panel').style.display = 'none';
 
     updateVerifyButton();
@@ -308,20 +349,34 @@ const executeVerification = () => {
         loading.style.display = 'none';
         success.style.display = 'flex';
 
-        const xpAmount = verificationProof.type === 'media' ? 150 : 100;
+        let xpAmount = 100;
+        if (verificationProof.type === 'media') xpAmount = 150;
+        if (verificationProof.type === 'qa') xpAmount = 250;
+
+        // Add reflection bonus
+        const reflectionEl = document.getElementById('verify-reflection');
+        const reflectionText = reflectionEl ? reflectionEl.value.trim() : '';
+        let hasReflection = false;
+
+        if (reflectionText.length > 5) {
+            xpAmount += 20;
+            verificationProof.reflection = reflectionText;
+            hasReflection = true;
+        }
+
         const xpEl = document.getElementById('verify-xp-earned');
         if (xpEl) xpEl.textContent = `+${xpAmount} XP`;
 
         // Phase 3: Close modal and complete task after 0.8s
         setTimeout(() => {
-            markTaskVerified(verifyingTaskId, verificationProof, xpAmount);
+            markTaskVerified(verifyingTaskId, verificationProof, xpAmount, hasReflection);
             closeVerifyModal();
         }, 800);
     }, 1200);
 };
 
 /* ── Mark Task as Verified and Complete ── */
-const markTaskVerified = (taskId, proof, xpAmount) => {
+const markTaskVerified = (taskId, proof, xpAmount, hasReflection = false) => {
     let tasks = getData(KEYS.TASKS, []);
     const task = tasks.find(t => t.id === taskId);
 
@@ -331,13 +386,18 @@ const markTaskVerified = (taskId, proof, xpAmount) => {
         task.proof = {
             type: proof.type,
             value: proof.value,
+            reflection: proof.reflection || null,
             verifiedAt: new Date().toISOString()
         };
         saveData(KEYS.TASKS, tasks);
 
         // Award XP based on proof type
-        const reason = proof.type === 'media'
-            ? '📎 Media proof accepted!' : '🔗 URL proof accepted!';
+        let reason = '🔗 URL proof accepted!';
+        if (proof.type === 'media') reason = '📎 Media proof accepted!';
+        if (proof.type === 'qa') reason = '🧠 AI Knowledge Check Passed!';
+
+        if (hasReflection) reason += ' (+20 XP Reflection)';
+
         if (typeof awardXP === 'function') awardXP(xpAmount, reason);
 
         // Fire confetti
@@ -538,6 +598,8 @@ const renderTasks = () => {
                 proofBadge = `<span class="pill pill-blue">🔗 URL Verified</span><span class="pill pill-gray">${timeAgo}</span>`;
             } else if (task.proof.type === 'media') {
                 proofBadge = `<span class="pill pill-green">📎 Media Verified</span><span class="pill pill-gray">${timeAgo}</span>`;
+            } else if (task.proof.type === 'qa') {
+                proofBadge = `<span class="pill" style="background:var(--accent-purple);color:#fff">🧠 AI Verified</span><span class="pill pill-gray">${timeAgo}</span>`;
             } else {
                 proofBadge = `<span class="pill pill-gray">⚡ Quick Complete</span><span class="pill pill-gray">${timeAgo}</span>`;
             }
