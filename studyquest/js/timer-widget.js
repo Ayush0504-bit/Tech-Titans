@@ -160,7 +160,7 @@
         const bubble = document.createElement('div');
         bubble.id = 'pomo-widget-bubble';
         bubble.innerHTML = '<span>⏱️</span>';
-        bubble.addEventListener('click', toggleExpanded);
+        // Click handler is added in makeDraggable() with drag-guard
         document.body.appendChild(bubble);
 
         // Inject card
@@ -576,9 +576,7 @@
         bubble.addEventListener('mousedown', onMouseDown);
         card.querySelector('.pw-header').addEventListener('mousedown', onMouseDown);
 
-        // Override bubble click to prevent toggle when dragging
-        const origHandler = bubble.onclick;
-        bubble.onclick = null;
+        // Click handler with drag guard
         bubble.addEventListener('click', (e) => {
             if (!isDragging) toggleExpanded();
         });

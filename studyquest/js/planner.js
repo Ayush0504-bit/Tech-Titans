@@ -14,7 +14,7 @@ const DIFFICULTY_KEYWORDS = {
     Hard: ['advanced', 'complex', 'calculus', 'algorithm', 'theory', 'proof', 'differential', 'integral', 'quantum', 'nonlinear', 'optimization', 'recursion', 'dynamic programming', 'abstract', 'theorem'],
     Easy: ['introduction', 'basic', 'overview', 'fundamentals', 'intro', 'getting started', 'beginner', 'simple', 'review', 'recap', 'summary', 'definitions'],
 };
-const SUBJECT_COLORS = ['#4F8EF7', '#3ECF8E', '#FFD166', '#A78BFA', '#F472B6', '#EC4899', '#34D399', '#FB923C', '#6366F1', '#14B8A6'];
+const PLANNER_COLORS = ['#4F8EF7', '#3ECF8E', '#FFD166', '#A78BFA', '#F472B6', '#EC4899', '#34D399', '#FB923C', '#6366F1', '#14B8A6'];
 
 let wizardStep = 1;
 let parsedCourses = [];  // Holds all courses added by user
@@ -80,7 +80,7 @@ const setupStep1Events = () => {
     });
 };
 
-const handleSyllabusFile = (file) => {
+const handleSyllabusFile = async (file) => {
     const accepted = ['text/plain', 'application/pdf', 'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const isImage = file.type.startsWith('image/');
@@ -94,20 +94,110 @@ const handleSyllabusFile = (file) => {
     const indicator = document.getElementById('file-indicator');
     indicator.style.display = 'flex';
     indicator.innerHTML = `
-        <span style="color:var(--accent-green)">✅</span>
+        <span style="font-size:1.2rem;">⏳</span>
         <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
-        <span style="font-size:0.75rem;color:var(--text-muted);">${(file.size / 1024).toFixed(1)} KB</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);">${(file.size / 1024).toFixed(1)} KB — extracting text...</span>
     `;
 
-    // If text file, read its contents into the textarea
-    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            document.getElementById('syllabus-text').value = e.target.result;
-        };
-        reader.readAsText(file);
-    } else if (isImage) {
-        showToast('📸 Image uploaded! Please also paste text for best results.', 'info');
+    const textarea = document.getElementById('syllabus-text');
+
+    try {
+        // ── PDF extraction using pdf.js ──
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            const arrayBuffer = await file.arrayBuffer();
+
+            // Set pdf.js worker
+            if (window.pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+
+                if (fullText.trim()) {
+                    textarea.value = fullText.trim();
+                    indicator.innerHTML = `
+                        <span style="color:var(--accent-green)">✅</span>
+                        <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                        <span style="font-size:0.75rem;color:var(--accent-green);">Extracted ${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''} of text</span>
+                    `;
+                    showToast(`📄 Extracted text from ${pdf.numPages} page${pdf.numPages > 1 ? 's' : ''}!`, 'success');
+                } else {
+                    indicator.innerHTML = `
+                        <span style="color:var(--accent-yellow)">⚠️</span>
+                        <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">PDF appears to be image-based. Please paste text manually.</span>
+                    `;
+                    showToast('PDF has no extractable text (may be scanned). Please paste your syllabus text below.', 'warning');
+                }
+            } else {
+                showToast('PDF library not loaded. Please paste your syllabus text instead.', 'warning');
+            }
+        }
+        // ── Plain text files ──
+        else if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                textarea.value = e.target.result;
+                indicator.innerHTML = `
+                    <span style="color:var(--accent-green)">✅</span>
+                    <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                    <span style="font-size:0.75rem;color:var(--accent-green);">Text loaded</span>
+                `;
+                showToast('📝 Text file loaded!', 'success');
+            };
+            reader.readAsText(file);
+        }
+        // ── DOC/DOCX — try reading as text ──
+        else if (file.name.match(/\.(doc|docx)$/i)) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // Extract readable text fragments from binary
+                const raw = e.target.result;
+                const textChunks = raw.match(/[\x20-\x7E]{4,}/g) || [];
+                const extracted = textChunks.join('\n');
+                if (extracted.length > 20) {
+                    textarea.value = extracted;
+                    indicator.innerHTML = `
+                        <span style="color:var(--accent-green)">✅</span>
+                        <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                        <span style="font-size:0.75rem;color:var(--accent-green);">Text extracted (partial)</span>
+                    `;
+                    showToast('📄 Extracted text from document. Review and edit if needed.', 'info');
+                } else {
+                    indicator.innerHTML = `
+                        <span style="color:var(--accent-yellow)">⚠️</span>
+                        <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">Could not extract text. Please paste manually.</span>
+                    `;
+                    showToast('Could not extract text from this document. Please paste your syllabus below.', 'warning');
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+        // ── Images ──
+        else if (isImage) {
+            indicator.innerHTML = `
+                <span style="color:var(--accent-blue)">📸</span>
+                <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);">Image uploaded. Please also paste text below.</span>
+            `;
+            showToast('📸 Image uploaded! Please also paste text for best results.', 'info');
+        }
+    } catch (err) {
+        console.error('File extraction error:', err);
+        indicator.innerHTML = `
+            <span style="color:var(--accent-red)">❌</span>
+            <span style="font-weight:600;font-size:0.85rem;">${file.name}</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);">Error extracting text. Please paste manually.</span>
+        `;
+        showToast('Error reading file. Please paste your syllabus text instead.', 'error');
     }
 };
 
@@ -138,19 +228,37 @@ const startAnalysis = () => {
    ══════════════════════════════════════════════ */
 
 const parseSyllabus = (text) => {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    // ── Pre-process: normalize whitespace, split intelligently ──
+    // PDF text often comes as long lines with multiple spaces
+    const normalized = text
+        .replace(/\r\n/g, '\n')
+        .replace(/[ \t]{2,}/g, ' ')            // collapse multiple spaces
+        .replace(/([.!?])\s+/g, '$1\n')        // break sentences into lines
+        .replace(/\s*[,;]\s*/g, '\n')           // break comma/semicolon lists into lines
+        .replace(/\s*\|\s*/g, '\n');            // break pipe-delimited
 
-    // Extract course name
+    const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+
+    // ── Extract course name ──
     let courseName = '';
-    const courseMatch = text.match(/(?:course|subject|module)[:\s]+(.+)/i);
-    if (courseMatch) courseName = courseMatch[1].trim();
-    if (!courseName && lines.length > 0) courseName = lines[0].replace(/^[\d.:\-]+/, '').trim();
+    const coursePatterns = [
+        /(?:course|subject|module|program|syllabus)\s*(?:name|title)?[:\s\-]+(.+)/i,
+        /(?:^|\n)([A-Z][A-Za-z\s&]+(?:Engineering|Science|Mathematics|Studies|Technology|Programming|Design|Management|Systems|Analysis))/m,
+    ];
+    for (const p of coursePatterns) {
+        const m = text.match(p);
+        if (m) { courseName = m[1].trim().substring(0, 80); break; }
+    }
+    if (!courseName && lines.length > 0) {
+        courseName = lines[0].replace(/^[\d.:\-]+/, '').trim().substring(0, 80);
+    }
 
-    // Extract exam date
+    // ── Extract exam date ──
     let examDate = '';
     const datePatterns = [
-        /(?:exam|final|assessment|test|due)[:\s]*(\w+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?)/i,
-        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/,
+        /(?:exam|final|assessment|test|due|deadline|end\s*sem)[:\s]*([\w\s,]+\d{4})/i,
+        /(?:exam|final|assessment|test|due|deadline)[:\s]*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i,
+        /(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/,
         /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?)/i,
     ];
     for (const pattern of datePatterns) {
@@ -164,65 +272,122 @@ const parseSyllabus = (text) => {
         }
     }
     if (!examDate) {
-        // Default: 30 days from now
-        const d = new Date();
-        d.setDate(d.getDate() + 30);
+        const d = new Date(); d.setDate(d.getDate() + 30);
         examDate = d.toISOString().split('T')[0];
     }
 
-    // Extract topics
+    // ── Extract topics using multiple strategies ──
     const topics = [];
+    const seenNames = new Set();
     let currentUnit = '';
 
+    // Words to skip (not real topics)
+    const skipWords = /^(course|subject|exam|date|assessment|university|college|semester|credit|mark|grade|objective|outcome|reference|textbook|book|author|isbn|page|professor|instructor|dr\.|mr\.|mrs\.|total|max|internal|external|hours|lecture|tutorial|practical|lab|prerequisite|co-?requisite|none|n\/a|note|important|instruction|the student|students will|upon completion|ability to|understand|learn|demonstrate|evaluate|apply|analyze|knowledge of|prepared by|approved|revised|effective|syllabus|curriculum|scheme|pattern|duration|time|session|year|program|department|faculty|school|institute|\d{1,2}[\/-]\d{1,2}|\d{4}|sr\.?\s*no|s\.?\s*no|sl\.?\s*no)/i;
+
+    const isHeader = (line) => {
+        return /^(?:unit|chapter|module|part|section|week|topic|lesson)\s*[-–:]?\s*[\divxlc.]+/i.test(line) ||
+            /^(?:unit|chapter|module|part|section|week|topic|lesson)\s+/i.test(line);
+    };
+
+    const addTopic = (name, unit) => {
+        name = name.replace(/^[\d.)\-:•*○●▪▸►]+\s*/, '').trim(); // strip leading markers
+        name = name.replace(/\s*[\(\[][^)\]]*[\)\]]\s*$/, '').trim(); // strip trailing parentheticals like (2 hours)
+        name = name.replace(/\s*[-–]\s*\d+\s*(hrs?|hours?|marks?|periods?)\s*$/i, '').trim(); // strip "- 3 hrs"
+
+        if (name.length < 3 || name.length > 120) return;
+        if (skipWords.test(name)) return;
+        if (/^\d+$/.test(name)) return; // pure numbers
+
+        const key = name.toLowerCase().replace(/\s+/g, ' ');
+        if (seenNames.has(key)) return;
+        seenNames.add(key);
+
+        const difficulty = estimateDifficulty(name);
+        topics.push({
+            id: generateId(),
+            name,
+            unit: unit || 'General',
+            difficulty,
+            estimatedHours: DIFFICULTY_HOURS[difficulty],
+            completed: false
+        });
+    };
+
+    // ── Strategy 1: Structured parsing (bullets, numbers, dashes) ──
     for (const line of lines) {
-        // Detect unit/chapter/module headers
-        const unitMatch = line.match(/^(?:unit|chapter|module|part|section|week)\s*[\d.:]+[:\s\-]*(.*)/i);
-        if (unitMatch) {
-            currentUnit = unitMatch[1].trim() || line;
+        if (isHeader(line)) {
+            currentUnit = line.replace(/^(?:unit|chapter|module|part|section|week|topic|lesson)\s*[-–:]?\s*[\divxlc.]*\s*[-–:\s]*/i, '').trim() || line;
             continue;
         }
 
-        // Detect topic lines (starts with -, •, *, number, or letters)
-        const topicMatch = line.match(/^\s*(?:[-•*]|\d+[.)]\s*|[a-z][.)]\s*)\s*(.+)/i);
-        if (topicMatch) {
-            const topicName = topicMatch[1].trim();
-            if (topicName.length > 2 && topicName.length < 150) {
-                const difficulty = estimateDifficulty(topicName);
-                topics.push({
-                    id: generateId(),
-                    name: topicName,
-                    unit: currentUnit || 'General',
-                    difficulty,
-                    estimatedHours: DIFFICULTY_HOURS[difficulty],
-                    completed: false
-                });
+        // Match lines with explicit markers
+        const markerMatch = line.match(/^\s*(?:[-•*○●▪▸►]|\d+[.)]\s*|[a-z][.)]\s*|[ivxlc]+[.)]\s*)\s*(.+)/i);
+        if (markerMatch) {
+            addTopic(markerMatch[1], currentUnit);
+        }
+    }
+
+    // ── Strategy 2: Keyword-based extraction (find academic topic phrases) ──
+    if (topics.length < 3) {
+        const academicPatterns = [
+            /(?:introduction to|fundamentals of|basics of|principles of|concepts of|overview of|study of|analysis of|design of|theory of|application of|elements of|foundations of|methods of|techniques of|role of)\s+[\w\s&,]+/gi,
+            /(?:data\s+\w+|machine\s+learning|artificial\s+intelligence|neural\s+network|deep\s+learning|computer\s+\w+|software\s+\w+|operating\s+system|database\s+\w+|web\s+\w+|cloud\s+\w+|cyber\s+\w+|network\s+\w+|digital\s+\w+|object\s+oriented|functional\s+\w+)/gi,
+            /(?:linear\s+\w+|differential\s+\w+|integral\s+\w+|numerical\s+\w+|discrete\s+\w+|probability|statistics|matrix|vector|tensor|polynomial|equation|transform|graph\s+theory|set\s+theory|number\s+theory|group\s+theory)/gi,
+            /(?:sorting|searching|hashing|recursion|iteration|stack|queue|linked\s+list|binary\s+tree|graph\s+\w+|dynamic\s+programming|greedy\s+\w+|divide\s+and\s+conquer|backtracking|complexity|big\s+o)/gi,
+            /(?:array|pointer|structure|union|function|class|object|inheritance|polymorphism|encapsulation|abstraction|interface|exception|thread|process|memory|file\s+\w+)/gi,
+        ];
+
+        for (const pattern of academicPatterns) {
+            const matches = text.matchAll(pattern);
+            for (const m of matches) {
+                addTopic(m[0], currentUnit || 'General');
             }
         }
     }
 
-    // If no topics found, try splitting by lines that look meaningful
-    if (topics.length === 0) {
-        for (const line of lines.slice(1)) {
-            if (line.length > 3 && line.length < 150 && !line.match(/^(course|subject|exam|date|assessment)/i)) {
-                const difficulty = estimateDifficulty(line);
-                topics.push({
-                    id: generateId(),
-                    name: line,
-                    unit: 'General',
-                    difficulty,
-                    estimatedHours: DIFFICULTY_HOURS[difficulty],
-                    completed: false
-                });
+    // ── Strategy 3: Line-by-line fallback (treat meaningful lines as topics) ──
+    if (topics.length < 3) {
+        // Re-split original text by newlines (before our comma splitting)
+        const originalLines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
+
+        for (const line of originalLines) {
+            if (isHeader(line)) {
+                currentUnit = line.replace(/^(?:unit|chapter|module|part|section|week|topic|lesson)\s*[-–:]?\s*[\divxlc.]*\s*[-–:\s]*/i, '').trim() || line;
+                continue;
+            }
+
+            // Skip lines that look like metadata
+            if (skipWords.test(line)) continue;
+            if (line.length > 150) {
+                // Long line — try to split by common delimiters
+                const parts = line.split(/[,;|]|\band\b|\bor\b/i).map(p => p.trim()).filter(p => p.length > 3 && p.length < 120);
+                for (const part of parts) {
+                    addTopic(part, currentUnit);
+                }
+            } else {
+                addTopic(line, currentUnit);
             }
         }
     }
 
-    // Calculate confidence based on data found
-    let confidence = 50;
+    // ── Strategy 4: Last resort — split entire text into chunks ──
+    if (topics.length < 2) {
+        const chunks = text.split(/[,;.\n|]+/).map(c => c.trim()).filter(c => c.length > 4 && c.length < 120);
+        for (const chunk of chunks) {
+            if (!skipWords.test(chunk)) {
+                addTopic(chunk, 'General');
+            }
+            if (topics.length >= 15) break; // cap it
+        }
+    }
+
+    // Calculate confidence
+    let confidence = 40;
     if (courseName) confidence += 15;
     if (examDate) confidence += 10;
     if (topics.length >= 3) confidence += 15;
     if (topics.length >= 8) confidence += 10;
+    if (topics.length >= 15) confidence += 10;
     confidence = Math.min(confidence, 98);
 
     return {
@@ -232,7 +397,7 @@ const parseSyllabus = (text) => {
         topics,
         confidence,
         uploadedAt: new Date().toISOString(),
-        color: SUBJECT_COLORS[parsedCourses.length % SUBJECT_COLORS.length]
+        color: PLANNER_COLORS[parsedCourses.length % PLANNER_COLORS.length]
     };
 };
 
