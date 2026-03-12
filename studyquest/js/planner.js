@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — planner.js (AI Syllabus Upload)
+ * Plan4U — planner.js (AI Syllabus Upload)
  * 3-step wizard for syllabus upload, AI parsing,
  * and intelligent schedule generation.
  * ============================================

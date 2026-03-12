@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — confetti.js
+ * Plan4U — confetti.js
  * Canvas-based confetti burst animation.
  * Spawns 80 colorful particles from a given
  * position with gravity, rotation, and fade.

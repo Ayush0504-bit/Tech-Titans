@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — app.js
+ * Plan4U — app.js
  * Global state management, localStorage helpers,
  * sidebar logic, header rendering, toast system,
  * daily login check, and shared utilities.

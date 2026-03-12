@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — tasks.js
+ * Plan4U — tasks.js
  * Task CRUD operations with Verification System.
  * Users must verify task completion via URL proof
  * or media upload before earning full XP.

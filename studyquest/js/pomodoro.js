@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — pomodoro.js
+ * Plan4U — pomodoro.js
  * Pomodoro timer: 25-min focus / 5-min break,
  * circular progress display, start/pause/reset,
  * session counter, Web Audio API beep, XP award.

@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — analytics.js
+ * Plan4U — analytics.js
  * Chart.js powered analytics dashboard.
  * Renders bar, doughnut, and line charts for
  * study hours, tasks, streaks, and performance.

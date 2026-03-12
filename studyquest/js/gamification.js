@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — gamification.js
+ * Plan4U — gamification.js
  * XP awarding, level system, streak management,
  * badge definitions, badge checking, and
  * level-up overlay display.

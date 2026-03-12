@@ -1,6 +1,6 @@
 /**
  * ============================================
- * StudyQuest — timer-widget.js
+ * Plan4U — timer-widget.js
  * Self-injecting floating Pomodoro timer widget.
  * Appears on all pages. Persists state across
  * navigation via localStorage. Includes collapsed
@@ -489,7 +489,7 @@
     function requestNotification() {
         if ('Notification' in window) {
             if (Notification.permission === 'granted') {
-                new Notification('🍅 StudyQuest Timer', {
+                new Notification('🍅 Plan4U Timer', {
                     body: state.mode === 'focus' ? 'Focus session complete! Take a break.' : 'Break over! Time to focus.',
                     icon: '📚'
                 });
